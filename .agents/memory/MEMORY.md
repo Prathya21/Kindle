@@ -1,0 +1,1 @@
+- [Kindle Reader frontend scope](kindle-reader-scope.md) — keep this product frontend-only until AWS integration is explicitly requested.

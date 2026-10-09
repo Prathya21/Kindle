@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Kindle Reader"
+description = "A responsive, frontend-only reading experience inspired by Kindle, with sample book discovery, personal library, wishlist, local sign-in screens, reader controls, and profile preferences."
+version = "1.0.0"
+id = "artifacts/kindle-reader"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25014
+
+[services.development]
+run = "pnpm --filter @workspace/kindle-reader run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/kindle-reader", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/kindle-reader/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25014"
+BASE_PATH = "/"
