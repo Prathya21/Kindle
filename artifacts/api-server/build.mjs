@@ -15,7 +15,10 @@ async function buildAll() {
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    entryPoints: {
+    index: path.resolve(artifactDir, "src/index.ts"),
+    lambda: path.resolve(artifactDir, "src/lambda.ts"),
+    },
     platform: "node",
     bundle: true,
     format: "esm",
@@ -60,7 +63,7 @@ async function buildAll() {
       "@mikro-orm/*",
       "@grpc/*",
       "@swc/*",
-      "@aws-sdk/*",
+      
       "@azure/*",
       "@opentelemetry/*",
       "@google-cloud/*",
