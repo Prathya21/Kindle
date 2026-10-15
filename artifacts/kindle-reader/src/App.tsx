@@ -291,6 +291,63 @@ function AuthPage({mode,setToast}:{mode:'login'|'signup';setToast:(s:string)=>vo
 function Reader(p:Shared) {
 
    const params=useParams<{bookId:string}>();const book=p.books.find(b=>b.id===params.bookId);const localPdf=p.pdfs.find(item=>item.id===params.bookId);
+   const [remotePdfUrl, setRemotePdfUrl] = useState('');
+const [remotePdfLoading, setRemotePdfLoading] = useState(false);
+const [remotePdfError, setRemotePdfError] = useState('');
+const [pdfRetry, setPdfRetry] = useState(0);
+
+useEffect(() => {
+  if (params.bookId !== 'book001') {
+    setRemotePdfUrl('');
+    setRemotePdfError('');
+    setRemotePdfLoading(false);
+    return;
+  }
+
+  let cancelled = false;
+
+  async function fetchPdfUrl() {
+    setRemotePdfLoading(true);
+    setRemotePdfError('');
+    setRemotePdfUrl('');
+
+    try {
+      const response = await fetch(
+        'https://0lclgt5d9a.execute-api.ap-southeast-2.amazonaws.com/api/books/book001/pdf-url'
+      );
+
+      if (!response.ok) {
+        throw new Error(`PDF request failed: HTTP ${response.status}`);
+      }
+
+      const data: { url?: string } = await response.json();
+
+      if (!data.url) {
+        throw new Error('The API did not return a PDF URL.');
+      }
+
+      if (!cancelled) {
+        setRemotePdfUrl(data.url);
+      }
+    } catch (error) {
+      if (!cancelled) {
+        setRemotePdfError(
+          error instanceof Error ? error.message : 'Could not load the PDF.'
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setRemotePdfLoading(false);
+      }
+    }
+  }
+
+  fetchPdfUrl();
+
+  return () => {
+    cancelled = true;
+  };
+}, [params.bookId, pdfRetry]);
 
    const [page,setPage]=useState(()=>p.progress[params.bookId]??0);const [contents,setContents]=useState(false);const [note,setNote]=useState('');const [savedNotes,setSavedNotes]=useState<string[]>(()=>readStorage(`kindle-notes-${params.bookId}`,[]));const [highlights,setHighlights]=useState<string[]>(()=>readStorage(`kindle-highlights-${params.bookId}`,[]));const [showNote,setShowNote]=useState(false);
 
@@ -307,7 +364,71 @@ function Reader(p:Shared) {
    if(localPdf)return <div className="reader"><div className="reader-top"><Link href="/library" className="btn small"><ChevronLeft size={15}/> Library</Link><span style={{fontSize:13}}>{localPdf.title} <span className="muted">· local PDF</span></span><button className="icon-btn" onClick={()=>p.setToast('PDF stays in this browser session.')} aria-label="Local file information"><BookOpen size={17}/></button></div><iframe title={localPdf.title} src={localPdf.url} style={{border:0,flex:1,minHeight:'calc(100dvh - 70px)',background:'#fff'}}/></div>;
 
    if(!book)return <main className="main"><div className="panel" style={{padding:30}}><h1 className="serif">This story isn’t on your shelf.</h1><Link className="btn primary" href="/store">Find a sample story</Link></div></main>;
+   if (book.id === 'book001') {
+  return (
+    <div className="reader">
+      <div className="reader-top">
+        <Link href="/library" className="btn small">
+          <ChevronLeft size={15} />
+          <span className="hide-mobile">Library</span>
+        </Link>
 
+        <div style={{ textAlign: 'center', minWidth: 0 }}>
+          <div className="serif" style={{ fontSize: 16 }}>
+            {book.title}
+          </div>
+          <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>
+            {book.author} · PDF reader
+          </div>
+        </div>
+
+        <button
+          className="icon-btn"
+          onClick={() => p.toggleWish(book.id)}
+          aria-label="Bookmark this book"
+        >
+          <Bookmark
+            size={17}
+            fill={p.wishlist.includes(book.id) ? 'currentColor' : 'none'}
+          />
+        </button>
+      </div>
+
+      {remotePdfLoading && (
+        <div className="main" style={{ padding: 30 }}>
+          Loading your book...
+        </div>
+      )}
+
+      {remotePdfError && (
+        <div className="main" style={{ padding: 30 }}>
+          <p>Unable to load the PDF: {remotePdfError}</p>
+          <button
+            className="btn primary"
+            onClick={() => setPdfRetry(value => value + 1)}
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {remotePdfUrl && (
+        <iframe
+          key={remotePdfUrl}
+          title={book.title}
+          src={remotePdfUrl}
+          style={{
+            border: 0,
+            flex: 1,
+            width: '100%',
+            minHeight: 'calc(100dvh - 70px)',
+            background: '#fff'
+          }}
+        />
+      )}
+    </div>
+  );
+}
    const total=book.pages.length;const pct=Math.round(((page+1)/total)*100);
 
    const saveNote=()=>{if(!note.trim())return;setSavedNotes(current=>[...current,`Page ${page+1}: ${note.trim()}`]);setNote('');setShowNote(false);p.setToast('Note saved on this device.');};
